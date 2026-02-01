@@ -125,6 +125,22 @@ MY_VARIABLE:
   max: 100              # Maximum (for numeric types)
 ```
 
+### Sensitive Value Masking
+
+Values are automatically masked in error output for:
+- Variables with `type: secret` or `type: jwt`
+- Variables with sensitive keywords in name (KEY, SECRET, TOKEN, PASSWORD, CREDENTIAL)
+
+```
+┌────────────────────┬────────────────────┬──────────────┐
+│ Variable           │ Error              │ Value        │
+├────────────────────┼────────────────────┼──────────────┤
+│ STRIPE_SECRET_KEY  │ must match pattern │ sk_t******..│
+└────────────────────┴────────────────────┴──────────────┘
+```
+
+This prevents accidental exposure of secrets in CI logs.
+
 ### Shorthand Syntax
 
 For simple variables, use shorthand:
