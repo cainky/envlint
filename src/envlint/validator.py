@@ -10,6 +10,13 @@ from urllib.parse import urlparse
 from envlint.schema import Schema, VarSchema, VarType
 
 
+def _mask_value(value: str, visible_chars: int = 4) -> str:
+    """Mask a sensitive value, showing only first few characters."""
+    if len(value) <= visible_chars:
+        return "*" * len(value)
+    return value[:visible_chars] + "*" * min(8, len(value) - visible_chars) + "..."
+
+
 class ErrorLevel(Enum):
     """Severity level for validation errors."""
 
@@ -122,6 +129,22 @@ def validate_type(value: str, var_type: VarType, var_name: str) -> str | None:
             return "must be a file path"
         return None
 
+    elif var_type == VarType.JWT:
+        # JWT tokens are base64-encoded and start with eyJ ({"alg":...)
+        if not value.startswith("eyJ"):
+            return "must be a valid JWT token (starts with eyJ)"
+        # Basic structure check: header.payload.signature
+        parts = value.split(".")
+        if len(parts) != 3:
+            return "must be a valid JWT token (header.payload.signature)"
+        return None
+
+    elif var_type == VarType.SECRET:
+        # Secret type - any non-empty string, but will be masked in output
+        if not value:
+            return "must not be empty"
+        return None
+
     return None
 
 
@@ -195,7 +218,16 @@ def validate(env_vars: dict[str, str], schema: Schema) -> ValidationResult:
             value = env_vars[var_name]
             errors = validate_var(value, var_schema)
             for error_msg in errors:
-                result.add_error(var_name, error_msg, actual=value)
+                # Mask sensitive values (secret, jwt types or pattern-based secrets)
+                display_value = value
+                if var_schema.type in (VarType.SECRET, VarType.JWT):
+                    display_value = _mask_value(value)
+                elif any(
+                    kw in var_name.upper()
+                    for kw in ("KEY", "SECRET", "TOKEN", "PASSWORD", "CREDENTIAL")
+                ):
+                    display_value = _mask_value(value)
+                result.add_error(var_name, error_msg, actual=display_value)
             if not errors:
                 result.validated_count += 1
 

@@ -106,6 +106,8 @@ Exit code is `1` on errors, `0` on success. Perfect for CI/CD.
 | `email` | Email address | `user@example.com` |
 | `port` | Port number (0-65535) | `8080` |
 | `path` | File path | `/var/log/app.log` |
+| `jwt` | JWT token (header.payload.signature) | `eyJhbGciOiJIUzI1NiIs...` |
+| `secret` | Sensitive value (masked in output) | `sk_live_abc123` |
 
 ### Full Schema Options
 

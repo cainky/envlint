@@ -1,7 +1,7 @@
 """Tests for the validation engine."""
 
 from envlint.schema import Schema, VarSchema, VarType
-from envlint.validator import validate, validate_type, validate_var
+from envlint.validator import _mask_value, validate, validate_type, validate_var
 
 
 class TestValidateType:
@@ -68,6 +68,30 @@ class TestValidateType:
         assert validate_type("-1", VarType.PORT, "VAR") is not None
         assert validate_type("65536", VarType.PORT, "VAR") is not None
         assert validate_type("abc", VarType.PORT, "VAR") is not None
+
+    def test_jwt_valid(self):
+        # Valid JWT format: header.payload.signature (all base64)
+        valid_jwt = (
+            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9."
+            "eyJzdWIiOiIxMjM0NTY3ODkwIn0."
+            "dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U"
+        )
+        assert validate_type(valid_jwt, VarType.JWT, "VAR") is None
+
+    def test_jwt_invalid(self):
+        # Doesn't start with eyJ
+        assert validate_type("invalid_token", VarType.JWT, "VAR") is not None
+        # Missing parts
+        assert validate_type("eyJhbGciOiJIUzI1NiJ9", VarType.JWT, "VAR") is not None
+        assert validate_type("eyJhbGciOiJIUzI1NiJ9.payload", VarType.JWT, "VAR") is not None
+
+    def test_secret_valid(self):
+        assert validate_type("sk_live_abc123", VarType.SECRET, "VAR") is None
+        assert validate_type("any_secret_value", VarType.SECRET, "VAR") is None
+
+    def test_secret_invalid(self):
+        # Empty secret is invalid
+        assert validate_type("", VarType.SECRET, "VAR") is not None
 
 
 class TestValidateVar:
@@ -178,3 +202,48 @@ class TestValidate:
         result = validate(env, schema)
         assert not result.is_valid
         assert len(result.errors) == 3  # 2 missing + 1 invalid type
+
+    def test_secret_masking(self):
+        """Test that secret values are masked in error output."""
+        schema = Schema(
+            variables={
+                "API_KEY": VarSchema(name="API_KEY", type=VarType.SECRET, pattern="^sk_"),
+            }
+        )
+        env = {"API_KEY": "invalid_secret_value"}
+        result = validate(env, schema)
+        assert not result.is_valid
+        # The actual value should be masked
+        assert "invalid_secret_value" not in result.errors[0].actual
+        assert result.errors[0].actual.startswith("inva")  # First 4 chars visible
+
+    def test_sensitive_name_masking(self):
+        """Test that variables with sensitive names are masked."""
+        schema = Schema(
+            variables={
+                "DATABASE_PASSWORD": VarSchema(name="DATABASE_PASSWORD", pattern="^secure_"),
+            }
+        )
+        env = {"DATABASE_PASSWORD": "plaintext_password"}
+        result = validate(env, schema)
+        assert not result.is_valid
+        # Should be masked because name contains PASSWORD
+        assert "plaintext_password" not in result.errors[0].actual
+
+
+class TestMaskValue:
+    """Tests for the _mask_value helper."""
+
+    def test_masks_long_values(self):
+        result = _mask_value("sk_live_1234567890abcdef")
+        assert result.startswith("sk_l")
+        assert "..." in result
+        assert "1234567890" not in result
+
+    def test_masks_short_values(self):
+        result = _mask_value("abc")
+        assert result == "***"
+
+    def test_masks_exact_threshold(self):
+        result = _mask_value("abcd")
+        assert result == "****"

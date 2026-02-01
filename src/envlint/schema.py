@@ -21,6 +21,8 @@ class VarType(Enum):
     EMAIL = "email"
     PORT = "port"
     PATH = "path"
+    JWT = "jwt"
+    SECRET = "secret"
 
 
 @dataclass

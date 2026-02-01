@@ -8,6 +8,7 @@ import typer
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
+from rich.text import Text
 
 from envlint import __version__
 from envlint.parser import EnvParseError, find_env_file, get_actual_env, load_env
@@ -47,7 +48,8 @@ def print_result(result: ValidationResult, verbose: bool = False):
             actual = error.actual if error.actual else "-"
             if len(actual) > 30:
                 actual = actual[:27] + "..."
-            table.add_row(error.variable, error.message, actual)
+            # Use Text to prevent Rich from interpreting [...] as markup
+            table.add_row(error.variable, Text(error.message, style="red"), actual)
 
         console.print(table)
         console.print()
@@ -169,7 +171,13 @@ def check(
             console.print(f"[dim]Loaded {len(system_vars)} system env vars[/dim]")
 
     if not env_vars and not use_system_env:
-        error_console.print("[red]Error:[/red] No .env file found and --system not specified")
+        if env_file is not None:
+            error_console.print(
+                f"[red]Error:[/red] .env file '{env_file}' contains no variables. "
+                "Add variables or use --system to check system environment."
+            )
+        else:
+            error_console.print("[red]Error:[/red] No .env file found and --system not specified")
         raise typer.Exit(1)
 
     # Validate
