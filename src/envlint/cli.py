@@ -120,6 +120,12 @@ def check(
         "-q",
         help="Only output on error",
     ),
+    expand: bool = typer.Option(
+        False,
+        "--expand",
+        "-x",
+        help="Expand ${VAR} and $VAR references",
+    ),
 ):
     """Validate .env file against schema.
 
@@ -155,7 +161,7 @@ def check(
 
     if env_file is not None:
         try:
-            env_vars = load_env(env_file)
+            env_vars = load_env(env_file, expand=expand)
             if verbose:
                 console.print(f"[dim]Using env file: {env_file}[/dim]")
         except EnvParseError as e:

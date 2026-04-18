@@ -6,6 +6,28 @@ import os
 import re
 from pathlib import Path
 
+_BRACE_VAR = re.compile(r"\$\{(\w+)\}")
+_SIMPLE_VAR = re.compile(r"\$(\w+)")
+
+
+def expand_vars(value: str, env_vars: dict[str, str]) -> str:
+    """Expand ${VAR} and $VAR references in a value using env_vars."""
+    if not value:
+        return value
+
+    result = value
+    for match in _BRACE_VAR.finditer(value):
+        var_name = match.group(1)
+        if var_name in env_vars:
+            result = result.replace(match.group(0), env_vars[var_name])
+
+    for match in _SIMPLE_VAR.finditer(result):
+        var_name = match.group(1)
+        if var_name in env_vars:
+            result = result.replace(match.group(0), env_vars[var_name])
+
+    return result
+
 
 class EnvParseError(Exception):
     """Raised when .env parsing fails."""
@@ -62,26 +84,38 @@ def parse_env_line(line: str, line_num: int) -> tuple[str, str] | None:
     return key, value
 
 
-def parse_env(content: str) -> dict[str, str]:
-    """Parse .env file content into a dictionary."""
+def parse_env(content: str, expand: bool = False) -> dict[str, str]:
+    """Parse .env file content into a dictionary.
+
+    Args:
+        content: The .env file content
+        expand: If True, expand ${VAR} and $VAR references
+    """
     env_vars: dict[str, str] = {}
 
     for line_num, line in enumerate(content.splitlines(), start=1):
         result = parse_env_line(line, line_num)
         if result:
             key, value = result
+            if expand:
+                value = expand_vars(value, env_vars)
             env_vars[key] = value
 
     return env_vars
 
 
-def load_env(path: Path) -> dict[str, str]:
-    """Load and parse a .env file."""
+def load_env(path: Path, expand: bool = False) -> dict[str, str]:
+    """Load and parse a .env file.
+
+    Args:
+        path: Path to .env file
+        expand: If True, expand ${VAR} and $VAR references
+    """
     if not path.exists():
         raise EnvParseError(f".env file not found: {path}")
 
     content = path.read_text(encoding="utf-8")
-    return parse_env(content)
+    return parse_env(content, expand=expand)
 
 
 def find_env_file(start_dir: Path | None = None) -> Path | None:
