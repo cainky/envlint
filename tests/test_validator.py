@@ -45,7 +45,7 @@ class TestValidateType:
 
     def test_url_invalid(self):
         assert validate_type("not-a-url", VarType.URL, "VAR") is not None
-        assert validate_type("ftp://files.example.com", VarType.URL, "VAR") is None  # ftp is valid
+        assert validate_type("ftp://files.example.com", VarType.URL, "VAR") is not None
         assert validate_type("://missing-scheme.com", VarType.URL, "VAR") is not None
 
     def test_email_valid(self):

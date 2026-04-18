@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import re
+import base64
+import json
 from dataclasses import dataclass, field
 from enum import Enum
 from urllib.parse import urlparse
@@ -74,7 +76,7 @@ class ValidationResult:
 def validate_type(value: str, var_type: VarType, var_name: str) -> str | None:
     """Validate value matches expected type. Returns error message or None."""
     if var_type == VarType.STRING:
-        return None  # Any string is valid
+        return None
 
     elif var_type == VarType.INT:
         try:
@@ -99,16 +101,35 @@ def validate_type(value: str, var_type: VarType, var_name: str) -> str | None:
     elif var_type == VarType.URL:
         try:
             result = urlparse(value)
-            if not all([result.scheme, result.netloc]):
-                return "must be a valid URL with scheme and host"
-            if result.scheme not in ("http", "https", "ftp", "ftps"):
-                return "must use http/https/ftp scheme"
+
+            if not result.scheme:
+                return "must have a scheme (http:// or https://)"
+
+            if result.scheme not in ("http", "https"):
+                return "must use http:// or https:// scheme"
+
+            if not result.netloc:
+                return "must have a hostname"
+
+            hostname = result.netloc.split(":")[0]
+
+            if hostname.startswith("["):
+                if result.netloc.endswith("]"):
+                    pass
+                else:
+                    return "invalid IPv6 address format"
+            elif hostname.replace(".", "").replace(":", "").isdigit():
+                pass
+            else:
+                hostname_pattern = r"^[a-zA-Z0-9]([a-zA-Z0-9\-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9\-]*[a-zA-Z0-9])?)*$"
+                if not re.match(hostname_pattern, hostname):
+                    return "invalid hostname format"
+
             return None
         except Exception:
             return "must be a valid URL"
 
     elif var_type == VarType.EMAIL:
-        # Simple email validation
         email_pattern = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
         if not re.match(email_pattern, value):
             return "must be a valid email address"
@@ -124,23 +145,33 @@ def validate_type(value: str, var_type: VarType, var_name: str) -> str | None:
             return "must be a port number (0-65535)"
 
     elif var_type == VarType.PATH:
-        # Just check it's not empty for now
         if not value:
             return "must be a file path"
         return None
 
     elif var_type == VarType.JWT:
-        # JWT tokens are base64-encoded and start with eyJ ({"alg":...)
-        if not value.startswith("eyJ"):
-            return "must be a valid JWT token (starts with eyJ)"
-        # Basic structure check: header.payload.signature
         parts = value.split(".")
         if len(parts) != 3:
             return "must be a valid JWT token (header.payload.signature)"
-        return None
+
+        try:
+            header_part = parts[0] + "=" * (4 - len(parts[0]) % 4)
+            header_decoded = base64.urlsafe_b64decode(header_part)
+            header = json.loads(header_decoded)
+
+            if not isinstance(header, dict):
+                return "JWT header must be a JSON object"
+
+            if "alg" not in header:
+                return "JWT header must contain 'alg' field"
+
+            return None
+        except json.JSONDecodeError:
+            return "JWT header must be valid JSON"
+        except Exception:
+            return "must be a valid JWT token (invalid base64 encoding)"
 
     elif var_type == VarType.SECRET:
-        # Secret type - any non-empty string, but will be masked in output
         if not value:
             return "must not be empty"
         return None
@@ -152,24 +183,20 @@ def validate_var(value: str, var_schema: VarSchema) -> list[str]:
     """Validate a single variable value against its schema. Returns list of errors."""
     errors = []
 
-    # Type validation
     type_error = validate_type(value, var_schema.type, var_schema.name)
     if type_error:
         errors.append(type_error)
-        return errors  # Don't continue if type is wrong
+        return errors
 
-    # Pattern validation
     if var_schema.pattern:
         if not re.match(var_schema.pattern, value):
             errors.append(f"must match pattern: {var_schema.pattern}")
 
-    # Choices validation
     if var_schema.choices:
         if value not in var_schema.choices:
             choices_str = ", ".join(var_schema.choices)
             errors.append(f"must be one of: {choices_str}")
 
-    # Range validation (for numeric types)
     if var_schema.type in (VarType.INT, VarType.FLOAT, VarType.PORT):
         try:
             num_value = float(value)
@@ -178,29 +205,20 @@ def validate_var(value: str, var_schema: VarSchema) -> list[str]:
             if var_schema.max_value is not None and num_value > var_schema.max_value:
                 errors.append(f"must be <= {var_schema.max_value}")
         except ValueError:
-            pass  # Already caught by type validation
+            pass
 
     return errors
 
 
 def validate(env_vars: dict[str, str], schema: Schema) -> ValidationResult:
-    """Validate environment variables against a schema.
+    """Validate environment variables against a schema."""
 
-    Args:
-        env_vars: Dictionary of environment variable names to values
-        schema: Schema to validate against
-
-    Returns:
-        ValidationResult with any errors/warnings
-    """
     result = ValidationResult()
 
-    # Check for missing required variables
     for var_name, var_schema in schema.variables.items():
         if var_name not in env_vars:
             if var_schema.required:
                 if var_schema.default is not None:
-                    # Has default, so it's OK
                     result.add_warning(
                         var_name,
                         "missing but has default value",
@@ -214,11 +232,9 @@ def validate(env_vars: dict[str, str], schema: Schema) -> ValidationResult:
                     )
                     result.missing_count += 1
         else:
-            # Variable exists, validate it
             value = env_vars[var_name]
             errors = validate_var(value, var_schema)
             for error_msg in errors:
-                # Mask sensitive values (secret, jwt types or pattern-based secrets)
                 display_value = value
                 if var_schema.type in (VarType.SECRET, VarType.JWT):
                     display_value = _mask_value(value)
@@ -231,7 +247,6 @@ def validate(env_vars: dict[str, str], schema: Schema) -> ValidationResult:
             if not errors:
                 result.validated_count += 1
 
-    # Check for extra variables (if strict mode)
     if schema.strict:
         for var_name in env_vars:
             if var_name not in schema.variables:
