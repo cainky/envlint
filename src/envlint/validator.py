@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-import re
 import base64
 import json
+import re
 from dataclasses import dataclass, field
 from enum import Enum
 from urllib.parse import urlparse
@@ -121,7 +121,10 @@ def validate_type(value: str, var_type: VarType, var_name: str) -> str | None:
             elif hostname.replace(".", "").replace(":", "").isdigit():
                 pass
             else:
-                hostname_pattern = r"^[a-zA-Z0-9]([a-zA-Z0-9\-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9\-]*[a-zA-Z0-9])?)*$"
+                hostname_pattern = (
+                    r"^[a-zA-Z0-9]([a-zA-Z0-9\-]*[a-zA-Z0-9])?"
+                    r"(\.[a-zA-Z0-9]([a-zA-Z0-9\-]*[a-zA-Z0-9])?)*$"
+                )
                 if not re.match(hostname_pattern, hostname):
                     return "invalid hostname format"
 

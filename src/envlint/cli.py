@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Optional
 
 import typer
 from rich.console import Console
@@ -85,13 +86,13 @@ def print_result(result: ValidationResult, verbose: bool = False):
 
 @app.command()
 def check(
-    env_file: Path | None = typer.Option(
+    env_file: Optional[Path] = typer.Option(
         None,
         "--env",
         "-e",
         help="Path to .env file (auto-detected if not specified)",
     ),
-    schema_file: Path | None = typer.Option(
+    schema_file: Optional[Path] = typer.Option(
         None,
         "--schema",
         "-s",
@@ -203,7 +204,7 @@ def init(
         "-o",
         help="Output file path",
     ),
-    from_env: Path | None = typer.Option(
+    from_env: Optional[Path] = typer.Option(
         None,
         "--from-env",
         "-f",

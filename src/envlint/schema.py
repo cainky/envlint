@@ -6,6 +6,7 @@ import re
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
+from typing import Optional
 
 import yaml
 
@@ -145,7 +146,7 @@ def load_schema(path: Path) -> Schema:
     return parse_schema(content)
 
 
-def find_schema_file(start_dir: Path | None = None) -> Path | None:
+def find_schema_file(start_dir: Optional[Path] = None) -> Optional[Path]:
     """Find schema file in current or parent directories.
 
     Looks for: .env.schema, .env.schema.yml, .env.schema.yaml, env.schema.yml

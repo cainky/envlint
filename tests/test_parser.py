@@ -37,7 +37,6 @@ class TestParseEnvLine:
         assert parse_env_line("KEY=value=with=equals", 1) == ("KEY", "value=with=equals")
 
     def test_value_with_hash(self):
-        # Hash in value (not a comment)
         assert parse_env_line("KEY=value#notcomment", 1) == ("KEY", "value#notcomment")
 
     def test_missing_equals(self):
@@ -115,3 +114,45 @@ KEY=second
 """
         result = parse_env(content)
         assert result == {}
+
+
+class TestExpandVars:
+    """Tests for variable expansion."""
+
+    def test_brace_syntax(self):
+        from envlint.parser import expand_vars
+
+        result = expand_vars("${FOO}", {"FOO": "bar"})
+        assert result == "bar"
+
+    def test_simple_syntax(self):
+        from envlint.parser import expand_vars
+
+        result = expand_vars("$FOO", {"FOO": "bar"})
+        assert result == "bar"
+
+    def test_multiple_vars(self):
+        from envlint.parser import expand_vars
+
+        result = expand_vars("${BASE}/api", {"BASE": "http://localhost:8080"})
+        assert result == "http://localhost:8080/api"
+
+    def test_mixed_syntax(self):
+        from envlint.parser import expand_vars
+
+        result = expand_vars("$BASE_URL/api", {"BASE_URL": "http://localhost"})
+        assert result == "http://localhost/api"
+
+    def test_unknown_var_unchanged(self):
+        from envlint.parser import expand_vars
+
+        result = expand_vars("$UNKNOWN", {"FOO": "bar"})
+        assert result == "$UNKNOWN"
+
+    def test_no_expand_in_content(self):
+        result = parse_env("FOO=bar\nBAR=$FOO", expand=False)
+        assert result == {"FOO": "bar", "BAR": "$FOO"}
+
+    def test_expand_in_content(self):
+        result = parse_env("FOO=true\nBAR=$FOO", expand=True)
+        assert result == {"FOO": "true", "BAR": "true"}

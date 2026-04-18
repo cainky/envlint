@@ -220,6 +220,49 @@ RUN envlint check
 # ... rest of build
 ```
 
+## Python API
+
+Use envlint programmatically in your code:
+
+```python
+from envlint.parser import parse_env, load_env
+from envlint.schema import load_schema
+from envlint.validator import validate
+
+# Load and validate env
+env_vars = load_env(".env")
+schema = load_schema(".env.schema")
+result = validate(env_vars, schema)
+
+if not result.is_valid:
+    for error in result.errors:
+        print(f"{error.variable}: {error.message}")
+    exit(1)
+```
+
+### With Variable Expansion
+
+```python
+# Enable ${VAR} and $VAR expansion
+env_vars = load_env(".env", expand=True)
+```
+
+### Direct Validation
+
+```python
+from envlint.validator import validate_type, validate_var
+from envlint.schema import VarSchema, VarType
+
+# Validate a single type
+error = validate_type("https://api.example.com", VarType.URL, "API_URL")
+if error:
+    print(f"Invalid: {error}")
+
+# Validate a value against a schema
+schema = VarSchema(name="API_KEY", type=VarType.STRING, pattern=r"^sk_")
+errors = validate_var("invalid", schema)
+```
+
 ## License
 
 GPL v3

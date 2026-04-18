@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "envlint"
-version = "0.3.0"
+version = "0.4.0"
 description = "Validate .env files against a schema. Catch missing and invalid environment variables before runtime."
 readme = "README.md"
 license = "GPL-3.0-or-later"
@@ -57,7 +57,8 @@ line-length = 100
 target-version = "py39"
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "N", "W", "UP"]
+select = ["E", "F", "I", "N", "W"]
+ignore = ["UP045"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

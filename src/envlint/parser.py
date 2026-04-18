@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import re
 from pathlib import Path
+from typing import Optional
 
 _BRACE_VAR = re.compile(r"\$\{(\w+)\}")
 _SIMPLE_VAR = re.compile(r"\$(\w+)")
@@ -118,7 +119,7 @@ def load_env(path: Path, expand: bool = False) -> dict[str, str]:
     return parse_env(content, expand=expand)
 
 
-def find_env_file(start_dir: Path | None = None) -> Path | None:
+def find_env_file(start_dir: Optional[Path] = None) -> Optional[Path]:
     """Find .env file in current or parent directories."""
     if start_dir is None:
         start_dir = Path.cwd()
