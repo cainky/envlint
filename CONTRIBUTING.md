@@ -70,4 +70,4 @@ Use the [issue templates](https://github.com/cainky/envlint/issues/new/choose) f
 
 ## License
 
-By contributing, you agree that your contributions will be licensed under the GPL v3 license.
+By contributing, you agree that your contributions will be licensed under the AGPL v3 license.

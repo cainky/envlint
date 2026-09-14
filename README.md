@@ -3,7 +3,7 @@
 **Language-agnostic .env validation. One schema, any stack.**
 
 [![PyPI version](https://badge.fury.io/py/envlint.svg)](https://badge.fury.io/py/envlint)
-[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPLv3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 
 Validate your `.env` files in CI before your app even starts. Works with any language.
 
@@ -265,7 +265,7 @@ errors = validate_var("invalid", schema)
 
 ## License
 
-GPL v3
+AGPL v3
 
 ## Contributing
 
